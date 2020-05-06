@@ -7,7 +7,9 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import androidx.core.content.res.ResourcesCompat
+import kotlin.math.abs
 
 private const val STROKE_WIDTH = 12f // has to be float
 
@@ -41,6 +43,10 @@ class MyCanvasView(context: Context) : View(context) {
     private var currentX = 0f
     private var currentY = 0f
 
+    // scaledTouchSlop return the distance in pixels, a touch can wander  before the system thinks
+    // the user is scrolling
+    private val touchTolerance = ViewConfiguration.get(context).scaledTouchSlop
+
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
 
@@ -63,7 +69,21 @@ class MyCanvasView(context: Context) : View(context) {
         currentY = motionTouchEventY
     }
 
-    private fun touchMove() {}
+    private fun touchMove() {
+        val dx = abs(motionTouchEventX - currentX)
+        val dy = abs(motionTouchEventY - currentY)
+        if (dx >= touchTolerance || dy >= touchTolerance) {
+            // QuadTo() adds a quadratic bezier from the last point,
+            // approaching control point (x1,y1), and ending at (x2,y2).
+            // Using quadTo() instead of lineTo() create a smoothly drawn line without corners
+            path.quadTo(currentX, currentY, (motionTouchEventX + currentX) / 2, (motionTouchEventY + currentY) / 2)
+            currentX = motionTouchEventX
+            currentY = motionTouchEventY
+            // Draw the path in the extra bitmap to cache it.
+            extraCanvas.drawPath(path, paint)
+        }
+        invalidate()
+    }
 
     private fun touchUp() {}
 
